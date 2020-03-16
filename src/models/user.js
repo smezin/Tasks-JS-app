@@ -55,7 +55,10 @@ const userSchema = new mongoose.Schema ({
             type: String,
             required: true
         }
-    }]
+    }],
+    avatar: {
+        type: Buffer
+    }
 }, {
     timestamps: true
 });
@@ -67,16 +70,21 @@ userSchema.virtual('myTasks', {
     foreignField: 'owner'
 })
 
+//called before strigify is called. stringify is called whenever we send back a user (user.send())
+//handling the fields before strigify (and send back) helps to keep security by deleteing passwords
+//and tokens, and keeping it light by deleting the avatar picture
 userSchema.methods.toJSON = function () {
     const user = this;
     const userObject = user.toObject();
 
     delete userObject.password;
     delete userObject.tokens;
+    delete userObject.avatar;
 
     return userObject;
 }
 
+//generates token for each login
 userSchema.methods.generateAuthToken = async function () {
     const user = this;
     const token = jwt.sign({_id: user._id.toString()}, 'thisissometext');
@@ -84,7 +92,7 @@ userSchema.methods.generateAuthToken = async function () {
     await user.save();
     return token;
 }
-
+//
 userSchema.statics.findByUserNameAndPassword = async (userName, password) => {
     const user = await User.findOne({email: userName});
     if (!user) {
